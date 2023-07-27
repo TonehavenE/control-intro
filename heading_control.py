@@ -39,6 +39,8 @@ def set_rotation_power(mav, power=0):
 
     set_rc_channel_pwm(mav, 4, 1500 + power * 5)
 
+def map_angle(h):
+    return (h + np.pi) % (2 * np.pi) - np.pi
 
 def main():
     mav = mavutil.mavlink_connection("udpin:0.0.0.0:14550")
@@ -78,19 +80,19 @@ def main():
     # TODO: convert heading to radians
     desired_heading = np.radians(desired_heading_deg)
 
-    pid = PID(0.5, 0.0, 10.0, 100)
+    pid = PID(10, 5.0, 20.0, 100)
 
     while True:
         # get yaw from the vehicle
         msg = mav.recv_match(type="ATTITUDE", blocking=True)
         yaw = msg.yaw
         yaw_rate = msg.yawspeed
-
-        print("Heading: ", np.rad2deg(yaw))
+        print("Heading: ", yaw)
 
         # calculate error
-        error = desired_heading - yaw
-        print("Error: ", np.rad2deg(error))
+        error = np.arctan2(np.sin(desired_heading - yaw), np.cos(desired_heading - yaw))
+        
+        print("Error: ", error)
 
         output = pid.update(error, error_derivative=yaw_rate)
         print("Output: ", output)
