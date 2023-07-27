@@ -84,15 +84,18 @@ def main():
         mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
         19,  # Manual mode
     )
+    set_vertical_power(
+            mav, 0
+        )
     print("Mode set to MANUAL")
 
     # ask user for depth
     desired_depth = float(input("Enter target depth: "))
-    pid = PID(60, 0.00, 0, 80)
+    pid = PID(40, 0.00, -10.0, 80)
 
     while True:
         # get pressure from the vehicle
-        msg = mav.recv_match(type="SCALED_PRESSURE", blocking=True)
+        msg = mav.recv_match(type="SCALED_PRESSURE2", blocking=True)
         press_abs = msg.press_abs  # in hPa
 
         # calculate depth
