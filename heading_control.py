@@ -26,7 +26,7 @@ def set_rc_channel_pwm(mav, channel_id, pwm=1500):
     )
 
 
-def set_rotation_power(mav, power=0):
+def set_rotation_power(mav, power=0, go_forward=False):
     """Set rotation power
     Args:
         power (int, optional): Power value -100-100
@@ -38,6 +38,8 @@ def set_rotation_power(mav, power=0):
     power = int(power)
 
     set_rc_channel_pwm(mav, 4, 1500 + power * 5)
+    if go_forward:
+        set_rc_channel_pwm(mav, 6, 1500 + 20 * 5)   
 
 def map_angle(h):
     return np.arctan2(np.sin(h), np.cos(h))
@@ -65,6 +67,9 @@ def main():
     print("Arming")
     mav.arducopter_arm()
     mav.motors_armed_wait()
+    set_rc_channel_pwm(mav, 4, 1500 + 0 * 5) # yaw
+    set_rc_channel_pwm(mav, 5, 1500 + 0 * 5) # forward
+    set_rc_channel_pwm(mav, 6, 1500 + 0) # lateral
     print("Armed")
 
     # set mode to MANUAL
@@ -83,7 +88,7 @@ def main():
     # TODO: convert heading to radians
     desired_heading = np.radians(desired_heading_deg)
 
-    pid = PID(20, 0.0, 5, 100)
+    pid = PID(35, 0.05, -10, 100)
 
     while True:
         # get yaw from the vehicle
@@ -91,9 +96,15 @@ def main():
         yaw = msg.yaw
         yaw_rate = msg.yawspeed
 
-        print("Heading: ", yaw)
-        
+        # print("Heading: ", np.rad2deg(yaw))
+
         error = desired_heading - yaw
+        print(f"Error: {np.rad2deg(error)}")
+        go_forward = False
+        if abs(360 - np.rad2deg(error)) % 360 < 10:
+            print("going forward!")
+            go_forward = True
+
         error %= (np.pi * 2)
         if (error > (np.pi / 2)) and (error < np.pi):
             error = 1
@@ -103,13 +114,12 @@ def main():
             error = np.sin(error)
 
         # print("Angle Diff: ", angle_diff)
-        print(f"Error: {error}")
 
         output = pid.update(error, error_derivative=yaw_rate)
         print("Output: ", output)
 
         # set vertical power
-        set_rotation_power(mav, output)
+        set_rotation_power(mav, output, go_forward)
 
 
 if __name__ == "__main__":
